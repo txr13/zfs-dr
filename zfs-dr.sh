@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/user/bin/env bash
 
 ## zfs-dr.sh
 ##
@@ -37,12 +37,13 @@
 zfs_root_pool="data"
 zfsdr_snap_prefix="zfs-dr"
 main_backup_dir="/backup"
+main_temp_dir="/backup"
 openssl_enc_pw_file="/root/key/zfs-dr.key"
 
 
 ### FUNCTIONS
 create_temp_dir() {
-  zfsdr_temp_dir=$(mktemp -p "$main_backup_dir" -d)
+  zfsdr_temp_dir=$(mktemp -p "$main_temp_dir" -d)
 }
 
 compress_archive() {
