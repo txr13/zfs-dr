@@ -1,4 +1,4 @@
-#!/user/bin/env bash
+#!/usr/bin/env bash
 
 ## zfs-dr.sh
 ##
@@ -39,6 +39,8 @@ zfsdr_snap_prefix="zfs-dr"
 main_backup_dir="/backup"
 main_temp_dir="/backup"
 openssl_enc_pw_file="/root/key/zfs-dr.key"
+compress_backup="true"
+encrypt_backup="true"
 
 
 ### FUNCTIONS
@@ -47,19 +49,38 @@ create_temp_dir() {
 }
 
 compress_archive() {
-  local current_working_dir=$(pwd)
-  cd "$zfsdr_temp_dir"
-  7za a -t7z -w"$zfsdr_temp_dir" -mx=9 -ms=off -m0=LZMA2 -mf=off -mmt=on "$current_archive".7z "$current_archive"
-  cd "$current_working_dir"
+  if [[ "$compress_backup" == "true" ]]; then
+    local current_working_dir=$(pwd)
+    cd "$zfsdr_temp_dir"
+    7za a -t7z -w"$zfsdr_temp_dir" -mx=9 -ms=off -m0=LZMA2 -mf=off -mmt=on "$current_archive".7z "$current_archive"
+    cd "$current_working_dir"
+  fi
 }
 
 encrypt_archive() {
-  openssl enc -aes-256-ctr -in "$zfsdr_temp_dir"/"$current_archive".7z -out "$zfsdr_temp_dir"/"$current_archive".7z.enc -pass file:"$openssl_enc_pw_file" -salt 
+  if [[ "$encrypt_backup" == "true" ]]; then
+    if [[ -f "$zfsdr_temp_dir"/"$current_archive".7z ]]; then
+      openssl enc -aes-256-ctr -in "$zfsdr_temp_dir"/"$current_archive".7z -out "$zfsdr_temp_dir"/"$current_archive".7z.enc -pass file:"$openssl_enc_pw_file" -salt 
+    elif [[ -f "$zfsdr_temp_dir"/"$current_archive" ]]; then
+      openssl enc -aes-256-ctr -in "$zfsdr_temp_dir"/"$current_archive" -out "$zfsdr_temp_dir"/"$current_archive".enc -pass file:"$openssl_enc_pw_file" -salt
+    fi
+  fi
 }
 
 move_archive_to_backup() {
-  mv "$zfsdr_temp_dir"/"$current_archive".7z.enc "$main_backup_dir"/"$current_archive".7z.enc
-  rm -r "$zfsdr_temp_dir"
+  if [[ -f "$zfsdr_temp_dir"/"$current_archive".7z.enc ]]; then
+    mv "$zfsdr_temp_dir"/"$current_archive".7z.enc "$main_backup_dir"/"$current_archive".7z.enc
+    rm -r "$zfsdr_temp_dir"
+  elif [[ -f "$zfsdr_temp_dir"/"$current_archive".enc ]]; then
+    mv "$zfsdr_temp_dir"/"$current_archive".enc "$main_backup_dir"/"$current_archive".enc
+    rm -r "$zfsdr_temp_dir"
+  elif [[ -f "$zfsdr_temp_dir"/"$current_archive".7z ]]; then
+    mv "$zfsdr_temp_dir"/"$current_archive".7z "$main_backup_dir"/"$current_archive".7z
+    rm -r "$zfsdr_temp_dir"
+  elif [[ -f "$zfsdr_temp_dir"/"$current_archive" ]]; then
+    mv "$zfsdr_temp_dir"/"$current_archive" "$main_backup_dir"/"$current_archive"
+    rm -r "$zfsdr_temp_dir"
+  fi
 }
 
 do_monthly_snap() {
