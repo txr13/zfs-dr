@@ -43,6 +43,7 @@ main_temp_dir="/backup"
 openssl_enc_pw_file="/root/key/zfs-dr.key"
 compress_backup="true"
 encrypt_backup="true"
+delete_intermediate_steps_immediately="false"
 
 
 ### FUNCTIONS
@@ -60,9 +61,15 @@ compress_archive() {
     if [[ ! -f "$zfsdr_temp_dir"/"$current_archive" ]]; then
       throw_error "Unable to determine what archive to compress!"
     fi
+
     local current_working_dir=$(pwd)
     cd "$zfsdr_temp_dir"
     7za a -t7z -w"$zfsdr_temp_dir" -mx=9 -ms=off -m0=LZMA2 -mf=off -mmt=on "$current_archive".7z "$current_archive"
+
+    if [[ "$delete_intermediate_steps_immediately" == "true" ]]; then
+      rm "$current_archive"
+    fi    
+
     cd "$current_working_dir"
   fi
 }
@@ -70,9 +77,15 @@ compress_archive() {
 encrypt_archive() {
   if [[ "$encrypt_backup" == "true" ]]; then
     if [[ -f "$zfsdr_temp_dir"/"$current_archive".7z ]]; then
-      openssl enc -aes-256-ctr -in "$zfsdr_temp_dir"/"$current_archive".7z -out "$zfsdr_temp_dir"/"$current_archive".7z.enc -pass file:"$openssl_enc_pw_file" -salt 
+      openssl enc -aes-256-ctr -in "$zfsdr_temp_dir"/"$current_archive".7z -out "$zfsdr_temp_dir"/"$current_archive".7z.enc -pass file:"$openssl_enc_pw_file" -salt
+      if [[ "$delete_intermediate_steps_immediately" == "true" ]]; then
+        rm "$zfsdr_temp_dir"/"$current_archive".7z
+      fi
     elif [[ -f "$zfsdr_temp_dir"/"$current_archive" ]]; then
       openssl enc -aes-256-ctr -in "$zfsdr_temp_dir"/"$current_archive" -out "$zfsdr_temp_dir"/"$current_archive".enc -pass file:"$openssl_enc_pw_file" -salt
+      if [[ "$delete_intermediate_steps_immediately" == "true" ]]; then
+        rm "$zfsdr_temp_dir"/"$current_archive"
+      fi
     else
       throw_error "Unable to determine what archive to encrypt!"
     fi
