@@ -44,12 +44,13 @@ openssl_enc_pw_file="/root/key/zfs-dr.key"
 compress_backup="true"
 encrypt_backup="true"
 delete_intermediate_steps_immediately="false"
+auto_delete_old_archives="true"
 
 
 ### FUNCTIONS
 throw_error(){
   echo "ERROR: ${1}" >&2
-  exit 1
+  exit 64
 }
 
 create_temp_dir() {
@@ -121,7 +122,9 @@ do_monthly_snap() {
 
   compress_archive
   encrypt_archive
-  dump_monthly_archives
+  if [[ "$auto_delete_old_archives" == "true" ]]; then
+    dump_monthly_archives
+  fi
   move_archive_to_backup
 }
 
@@ -155,7 +158,9 @@ do_weekly_snap() {
 
   compress_archive
   encrypt_archive
-  dump_daily_archives
+  if [[ "$auto_delete_old_archives" == "true" ]]; then
+    dump_daily_archives
+  fi
   move_archive_to_backup
 }
 
@@ -254,8 +259,11 @@ get_current_week() {
 ### MAIN SCRIPT
 
 if [[ ! -d $main_backup_dir ]]; then
-  echo "Backup root directory $main_backup_dir not found, exiting..."
-  exit 255
+  throw_error "Backup storage directory $main_backup_dir not found, exiting..."
+fi
+
+if [[ ! -d $main_temp_dir ]]; then
+  throw_error "Scratch directory $main_temp_dir not found, exiting..."
 fi
 
 if [[ `date +%d` -eq 1 ]]; then
