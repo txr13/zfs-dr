@@ -17,6 +17,8 @@
 ## the previous monthly, weekly, or daily snapshot (whichever was done
 ## last).
 ##
+##
+##
 ##     Copyright (C) 2018 Lance Hathaway
 ##
 ##    This program is free software: you can redistribute it and/or modify
@@ -44,12 +46,20 @@ encrypt_backup="true"
 
 
 ### FUNCTIONS
+throw_error(){
+  echo "ERROR: ${1}" >&2
+  exit 1
+}
+
 create_temp_dir() {
   zfsdr_temp_dir=$(mktemp -p "$main_temp_dir" -d)
 }
 
 compress_archive() {
   if [[ "$compress_backup" == "true" ]]; then
+    if [[ ! -f "$zfsdr_temp_dir"/"$current_archive" ]]; then
+      throw_error "Unable to determine what archive to compress!"
+    fi
     local current_working_dir=$(pwd)
     cd "$zfsdr_temp_dir"
     7za a -t7z -w"$zfsdr_temp_dir" -mx=9 -ms=off -m0=LZMA2 -mf=off -mmt=on "$current_archive".7z "$current_archive"
@@ -63,6 +73,8 @@ encrypt_archive() {
       openssl enc -aes-256-ctr -in "$zfsdr_temp_dir"/"$current_archive".7z -out "$zfsdr_temp_dir"/"$current_archive".7z.enc -pass file:"$openssl_enc_pw_file" -salt 
     elif [[ -f "$zfsdr_temp_dir"/"$current_archive" ]]; then
       openssl enc -aes-256-ctr -in "$zfsdr_temp_dir"/"$current_archive" -out "$zfsdr_temp_dir"/"$current_archive".enc -pass file:"$openssl_enc_pw_file" -salt
+    else
+      throw_error "Unable to determine what archive to encrypt!"
     fi
   fi
 }
@@ -70,17 +82,17 @@ encrypt_archive() {
 move_archive_to_backup() {
   if [[ -f "$zfsdr_temp_dir"/"$current_archive".7z.enc ]]; then
     mv "$zfsdr_temp_dir"/"$current_archive".7z.enc "$main_backup_dir"/"$current_archive".7z.enc
-    rm -r "$zfsdr_temp_dir"
   elif [[ -f "$zfsdr_temp_dir"/"$current_archive".enc ]]; then
     mv "$zfsdr_temp_dir"/"$current_archive".enc "$main_backup_dir"/"$current_archive".enc
-    rm -r "$zfsdr_temp_dir"
   elif [[ -f "$zfsdr_temp_dir"/"$current_archive".7z ]]; then
     mv "$zfsdr_temp_dir"/"$current_archive".7z "$main_backup_dir"/"$current_archive".7z
-    rm -r "$zfsdr_temp_dir"
   elif [[ -f "$zfsdr_temp_dir"/"$current_archive" ]]; then
     mv "$zfsdr_temp_dir"/"$current_archive" "$main_backup_dir"/"$current_archive"
-    rm -r "$zfsdr_temp_dir"
+  else
+    throw_error "Unable to locate archive to move to storage!"
   fi
+
+  rm -r "$zfsdr_temp_dir"
 }
 
 do_monthly_snap() {
