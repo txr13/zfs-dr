@@ -113,6 +113,42 @@ move_archive_to_backup() {
   rm -r "$zfsdr_temp_dir"
 }
 
+check_for_monthly_archive() {
+  for f in "$main_backup_dir"/"$zfsdr_snap_prefix"_monthly_`date +%Y%m`*; do
+    if [[ ! -f "$f" ]]; then
+      for d in "$main_temp_dir"/"$zfsdr_snap_prefix".*; do
+        if [[ -d "$d" && "$d" != "$zfsdr_temp_dir" ]]; then
+          throw_warning "Missing monthly archive detected, but at least one other scratch directory is still processing; continuing..."
+        break 2
+        fi
+      done
+      throw_warning "Missing monthly archive detected, and NO other scratch directories exist--admin attention required! Continuing..."
+      break
+    fi
+  done
+}
+
+check_for_weekly_archive() {
+  if [[ $previous_week -ne 0 ]]; then
+    for f in "$main_backup_dir"/"$zfsdr_snap_prefix"_weekly"$previous_week"*; do
+      if [[ ! -f "$f" ]]; then
+        for d in "$main_temp_dir"/"$zfsdr_snap_prefix".*; do
+          if [[ -d "$d" && "$d" != "$zfsdr_temp_dir" ]]; then
+            throw_warning "Missing previous weekly archive detected, but at least one other scratch directory is still processing; continuing..."
+          break 2
+          fi
+        done
+        throw_warning "Missing previous weekly archive detected, and NO other scratch directories exist--admin attention required! Continuing..."
+        break
+      fi
+    done
+  fi
+}
+
+export_zfs_incremental_snapshot() {
+  zfs send -R -i "$zfs_root_pool"@"$zfsdr_snap_prefix"_${1} "$zfs_root_pool"@"$zfsdr_snap_prefix"_${2} > "$zfsdr_temp_dir"/"$current_archive"
+}
+
 do_monthly_snap() {
   zfs snapshot -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_newmonthly
   dump_monthly_snaps
@@ -135,7 +171,7 @@ do_monthly_snap() {
 do_weekly_snap() {
   zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly$
   if [[ $? -eq 1 ]]; then
-    throw_warning "Missing monthly snapshot during weekly snapshot run; performing monthly snapshot instead."
+    throw_warning "Missing monthly snapshot detected; performing monthly snapshot instead."
     do_monthly_snap
     return
   fi
@@ -156,38 +192,13 @@ do_weekly_snap() {
 
   current_archive="$zfsdr_snap_prefix"_weekly_`date +%Y%m%d`
 
-  for f in "$main_backup_dir"/"$zfsdr_snap_prefix"_monthly_`date +%Y%m`*; do
-    if [[ ! -f "$f" ]]; then
-      for d in "$main_temp_dir"/"$zfsdr_snap_prefix".*; do
-        if [[ -d "$d" && "$d" != "$zfsdr_temp_dir" ]]; then
-          throw_warning "Missing monthly archive during weekly snapshot run, but at least one other scratch directory is still processing; continuing weekly snapshot run..."
-        break 2
-        fi
-      done
-      throw_warning "Missing monthly archive during weekly snapshot run, and NO other scratch directories exist--admin attention required! Continuing weekly snapshot run..."
-      break
-    fi
-  done
-
-  if [[ $previous_week -ne 0 ]]; then
-    for f in "$main_backup_dir"/"$zfsdr_snap_prefix"_weekly"$previous_week"*; do
-      if [[ ! -f "$f" ]]; then
-        for d in "$main_temp_dir"/"$zfsdr_snap_prefix".*; do
-          if [[ -d "$d" && "$d" != "$zfsdr_temp_dir" ]]; then
-            throw_warning "Missing previous weekly archive during weekly snapshot run, but at least one other scratch directory is still processing; continuing weekly snapshot run..."
-          break 2
-          fi
-        done
-        throw_warning "Missing previous weekly archive during weekly snapshot run, and NO other scratch directories exist--admin attention required! Continuing weekly snapshot run..."
-        break
-      fi
-    done
-  fi
+  check_for_monthly_archive
+  check_for_weekly_archive
 
   if [[ $previous_week -eq 0 ]];then
-    zfs send -R -i "$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly "$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$current_week" > "$zfsdr_temp_dir"/"$current_archive"
+    export_zfs_incremental_snapshot monthly weekly"$current_week"
   else
-    zfs send -R -i "$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$previous_week" "$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$current_week" > "$zfsdr_temp_dir"/"$current_archive"
+    export_zfs_incremental_snapshot weekly"$previous_week" weekly"$current_week"
   fi
 
   compress_archive
@@ -201,7 +212,7 @@ do_weekly_snap() {
 do_daily_snap() {
   zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly$
   if [[ $? -eq 1 ]]; then
-    throw_warning "Missing monthly snapshot during daily snapshot run; performing monthly snapshot instead."
+    throw_warning "Missing monthly snapshot detected; performing monthly snapshot instead."
     do_monthly_snap
     return
   fi
@@ -231,13 +242,13 @@ do_daily_snap() {
   fi
 
   if [[ $previous_day -ne 0 && $prev_day_exists -eq 1 ]]; then
-    zfs send -R -i "$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$previous_day" "$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$current_day" > "$zfsdr_temp_dir"/"$current_archive"
+    export_zfs_incremental_snapshot daily"$previous_day" daily"$current_day"
   elif [[ $curr_week_exists -eq 1 ]]; then
-    zfs send -R -i "$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$current_week" "$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$current_day" > "$zfsdr_temp_dir"/"$current_archive"
+    export_zfs_incremental_snapshot weekly"$current_week" daily"$current_day"
   elif [[ $previous_week -ne 0 && $prev_week_exists -eq 1 ]]; then
-    zfs send -R -i "$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$previous_week" "$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$current_day" > "$zfsdr_temp_dir"/"$current_archive"
+    export_zfs_incremental_snapshot weekly"$previous_week" daily"$current_day"
   else
-    zfs send -R -i "$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly "$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$current_day" > "$zfsdr_temp_dir"/"$current_archive"
+    export_zfs_incremental_snapshot monthly daily"$current_day"
   fi
 
   compress_archive
