@@ -147,6 +147,7 @@ do_weekly_snap() {
   while [[ $previous_week -ne 0 ]]; do
     zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$previous_week"$
     if [[ $? -eq 1 ]]; then
+      throw_warning "Missing snapshot weekly$previous_week"
       previous_week=$(( $previous_week-- ))
     fi
   done
