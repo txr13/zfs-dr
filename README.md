@@ -13,7 +13,7 @@ Configuration of the script is controlled by several variables at the top of the
 Obviously, ZFS will need to be installed. Beyond that, other external programs used include:
 - `date`
 - `mktemp`
--  grep
+- `grep`
 - `openssl`
 - `7za`
 
