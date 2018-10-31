@@ -26,4 +26,3 @@ Set the configuration variables in the top of the script according to your requi
 
 Future goals for development (in no particular order):
 - Put the configuration variables into a separate config file with better inline documentation.
-- Split the script into two parts. (Cron won't execute a job if a previous incarnation is still executing. Compression and encryption of larger pools can take a while, particularly on the monthly snapshot, so it would be useful to have a small script which cron can execute to take the snapshots. The small script can then fork off the compression / encryption / archive management script before dying. This will allow cron to call it again the next day while the previous snapshots is still being processed.)
