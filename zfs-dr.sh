@@ -57,6 +57,45 @@ throw_warning(){
   echo "WARNING: ${1}" >&2
 }
 
+prerequisite_check() {
+  if [[ ! -d $main_backup_dir ]]; then
+    throw_error "Backup storage directory $main_backup_dir not found, exiting..."
+  fi
+
+  if [[ ! -d $main_temp_dir ]]; then
+    throw_error "Scratch directory $main_temp_dir not found, exiting..."
+  fi
+
+  command -v date > /dev/null 2>&1
+  if [[ $? -ne 0 ]]; then
+    throw_error "date utility not found."
+  fi
+
+  command -v mktemp > /dev/null 2>&1
+  if [[ $? -ne 0 ]]; then
+    throw_error "mktemp utility not found."
+  fi
+
+  command -v grep > /dev/null 2>&1
+  if [[ $? -ne 0 ]]; then
+    throw_error "grep utility not found."
+  fi
+
+  if [[ $encrypt_backup = "true" ]]; then
+    openssl version > /dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+      throw_error "openssl utility not found."
+    fi
+  fi
+
+  if [[ $compress_backup = "true" ]]; then
+    7za > /dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+      throw_error "7za utility not found."
+    fi
+  fi
+}
+
 create_temp_dir() {
   zfsdr_temp_dir=$(mktemp -p "$main_temp_dir" -t "$zfsdr_snap_prefix".XXXXXXXX -d)
 }
@@ -330,13 +369,7 @@ get_current_week() {
 
 ### MAIN SCRIPT
 
-if [[ ! -d $main_backup_dir ]]; then
-  throw_error "Backup storage directory $main_backup_dir not found, exiting..."
-fi
-
-if [[ ! -d $main_temp_dir ]]; then
-  throw_error "Scratch directory $main_temp_dir not found, exiting..."
-fi
+prerequisite_check
 
 if [[ `date +%d` -eq 1 ]]; then
   do_monthly_snap
