@@ -113,46 +113,16 @@ move_archive_to_backup() {
   rm -r "$zfsdr_temp_dir"
 }
 
-check_for_monthly_archive() {
-  for f in "$main_backup_dir"/"$zfsdr_snap_prefix"_monthly_`date +%Y%m`*; do
+check_for_archive() {
+  for f in "$main_backup_dir"/"$zfsdr_snap_prefix"_${1}_${2}*; do
     if [[ ! -f "$f" ]]; then
       for d in "$main_temp_dir"/"$zfsdr_snap_prefix".*; do
         if [[ -d "$d" && "$d" != "$zfsdr_temp_dir" ]]; then
-          throw_warning "Missing monthly archive detected, but at least one other scratch directory is still processing; continuing..."
+          throw_warning "Missing ${1} archive detected, but at least one other scratch directory is still processing; continuing..."
         break 2
         fi
       done
-      throw_warning "Missing monthly archive detected, and NO other scratch directories exist--admin attention required! Continuing..."
-      break
-    fi
-  done
-}
-
-check_for_weekly_archive() {
-  for f in "$main_backup_dir"/"$zfsdr_snap_prefix"_weekly"${1}"*; do
-    if [[ ! -f "$f" ]]; then
-      for d in "$main_temp_dir"/"$zfsdr_snap_prefix".*; do
-        if [[ -d "$d" && "$d" != "$zfsdr_temp_dir" ]]; then
-          throw_warning "Missing previous weekly archive detected, but at least one other scratch directory is still processing; continuing..."
-        break 2
-        fi
-      done
-      throw_warning "Missing previous weekly archive detected, and NO other scratch directories exist--admin attention required! Continuing..."
-      break
-    fi
-  done
-}
-
-check_for_daily_archive() {
-  for f in "$main_backup_dir"/"$zfsdr_snap_prefix"_daily"${1}"*; do
-    if [[ ! -f "$f" ]]; then
-      for d in "$main_temp_dir"/"$zfsdr_snap_prefix".*; do
-        if [[ -d "$d" && "$d" != "$zfsdr_temp_dir" ]]; then
-          throw_warning "Missing previous daily archive detected, but at least one other scratch directory is still processing; continuing..."
-        break 2
-        fi
-      done
-      throw_warning "Missing previous daily archive detected, and NO other scratch directories exist--admin attention required! Continuing..."
+      throw_warning "Missing ${1} archive detected, and NO other scratch directories exist--admin attention required! Continuing..."
       break
     fi
   done
@@ -212,12 +182,15 @@ do_weekly_snap() {
 
   current_archive="$zfsdr_snap_prefix"_weekly_`date +%Y%m%d`
 
-  check_for_monthly_archive
+  check_for_archive monthly `date +%Y%m`
 
   if [[ $previous_week -lt 1 ]];then
     export_zfs_incremental_snapshot monthly weekly"$current_week"
   else
-    check_for_weekly_archive $previous_week
+    local rewindweeks=$(( $current_week - $previous_week ))
+    local rewinddays=$(( $rewindweeks * 7 ))
+    local prevarchivedate=$(( $start_of_week - $rewinddays ))
+    check_for_archive weekly `date +%Y%m`$prevarchivedate
     export_zfs_incremental_snapshot weekly"$previous_week" weekly"$current_week"
   fi
 
@@ -279,9 +252,9 @@ do_daily_snap() {
 
   current_archive="$zfsdr_snap_prefix"_daily_`date +%Y%m%d`
 
-  check_for_monthly_archive
+  check_for_archive monthly `date +%Y%m`
   if [[ $current_week -gt 0 ]]; then
-    check_for_weekly_archive $current_week
+    check_for_archive weekly `date +%Y%m`$start_of_week
   fi
 
   # If previous day of week is greater than zero (and we didn't reach the beginning of the month),
@@ -291,7 +264,9 @@ do_daily_snap() {
   # of the week, we're automatically in week zero.)
   # If we're in week zero, export based on the monthly snapshot.
   if [[ $previous_dow -gt 0 && $previous_day -gt 1 ]]; then
-    check_for_daily_archive $previous_dow
+    local rewind=$(( $current_dow - $previous_dow ))
+    local prevarchivedate=$(( `date +%d` - $rewind ))
+    check_for_archive daily `date +%Y%m`$prevarchivedate
     export_zfs_incremental_snapshot daily"$previous_dow" daily"$current_dow"
   elif [[ $current_week -gt 0 ]]; then
     export_zfs_incremental_snapshot weekly"$current_week" daily"$current_dow"
