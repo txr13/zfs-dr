@@ -27,3 +27,6 @@ Set the configuration variables in the top of the script according to your requi
 
 Future goals for development (in no particular order):
 - Put the configuration variables into a separate config file with better inline documentation.
+- Use `cp`/`rm` instead of `mv` to transfer the completed archive (avoid permissions errors when transferring across filesystem boundaries)
+- Update `$current_archive` with new extensions as the archive is built. Should be able to avoid checking for multiple possible filenames on each successive step.
+- Add debug/verbose switch to enable xtrace and additional messages indicating program flow points
