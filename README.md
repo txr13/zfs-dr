@@ -12,12 +12,13 @@ Configuration of the script is controlled by several variables at the top of the
 
 Obviously, ZFS will need to be installed. Beyond that, other external programs used include:
 - `date`
+- `xargs`
 - `mktemp`
 - `grep`
 - `openssl`
 - `7za`
 
-The first four probably come as part of a standard install of your preferred distro, with 7-Zip being the only additional package required (and only if using the optional compression step).
+The first five probably come as part of a standard install of your preferred distro, with 7-Zip being the only additional package required (and only if using the optional compression step).
 
 ## Usage
 

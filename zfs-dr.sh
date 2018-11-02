@@ -71,6 +71,11 @@ prerequisite_check() {
     throw_error "date utility not found."
   fi
 
+  xargs --version
+  if [[ $? -ne 0 ]]; then
+    throw_error "xargs utility not found."
+  fi
+
   command -v mktemp > /dev/null 2>&1
   if [[ $? -ne 0 ]]; then
     throw_error "mktemp utility not found."
