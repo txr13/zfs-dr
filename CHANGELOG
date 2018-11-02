@@ -17,6 +17,7 @@
   progress. If there are no other scratch directories present, the warning will
   indicate that the user should examine the situation and manually re-export the
   relevant snapshots as needed.
+- Added a prerequisite check to be sure dependencies are available
 
 ## Fixed
 - Script previously assumed that a missing immediate predecessor snapshot indicated
