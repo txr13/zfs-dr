@@ -234,6 +234,9 @@ do_weekly_snap() {
     local rewindweeks=$(( $current_week - $previous_week ))
     local rewinddays=$(( $rewindweeks * 7 ))
     local prevarchivedate=$(( $start_of_week - $rewinddays ))
+    if [[ $prevarchivedate -lt 10 ]]; then
+      prevarchivedate="0$prevarchivedate"
+    fi
     check_for_archive weekly `date +%Y%m`$prevarchivedate
     export_zfs_incremental_snapshot weekly"$previous_week" weekly"$current_week"
   fi
@@ -298,6 +301,9 @@ do_daily_snap() {
 
   check_for_archive monthly `date +%Y%m`
   if [[ $current_week -gt 0 ]]; then
+    if [[ $start_of_week -lt 10 ]]; then
+      start_of_week="0$start_of_week"
+    fi
     check_for_archive weekly `date +%Y%m`$start_of_week
   fi
 
@@ -310,6 +316,9 @@ do_daily_snap() {
   if [[ $previous_dow -gt 0 && $previous_day -gt 1 ]]; then
     local rewind=$(( $current_dow - $previous_dow ))
     local prevarchivedate=$(( `date +%d` - $rewind ))
+    if [[ $prevarchivedate -lt 10 ]]; then
+      prevarchivedate="0$prevarchivedate"
+    fi
     check_for_archive daily `date +%Y%m`$prevarchivedate
     export_zfs_incremental_snapshot daily"$previous_dow" daily"$current_dow"
   elif [[ $current_week -gt 0 ]]; then
