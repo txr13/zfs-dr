@@ -113,43 +113,36 @@ compress_archive() {
 
     local current_working_dir=$(pwd)
     cd "$zfsdr_temp_dir"
-    7za a -t7z -w"$zfsdr_temp_dir" -mx=9 -ms=off -m0=LZMA2 -mf=off -mmt=on "$current_archive".7z "$current_archive"
+    7za a -t7z -w"$zfsdr_temp_dir" -mx=9 -ms=off -m0=LZMA2 -mf=off -mmt=on "$current_archive.7z" "$current_archive"
 
     if [[ "$delete_intermediate_steps_immediately" == "true" ]]; then
       rm "$current_archive"
     fi    
 
+    current_archive="$current_archive.7z"
     cd "$current_working_dir"
   fi
 }
 
 encrypt_archive() {
   if [[ "$encrypt_backup" == "true" ]]; then
-    if [[ -f "$zfsdr_temp_dir"/"$current_archive".7z ]]; then
-      openssl enc -aes-256-ctr -in "$zfsdr_temp_dir"/"$current_archive".7z -out "$zfsdr_temp_dir"/"$current_archive".7z.enc -pass file:"$openssl_enc_pw_file" -salt
+    if [[ -f "$zfsdr_temp_dir/$current_archive" ]]; then
+      openssl enc -aes-256-ctr -in "$zfsdr_temp_dir/$current_archive" -out "$zfsdr_temp_dir/$current_archive.enc" -pass file:"$openssl_enc_pw_file" -salt
       if [[ "$delete_intermediate_steps_immediately" == "true" ]]; then
-        rm "$zfsdr_temp_dir"/"$current_archive".7z
-      fi
-    elif [[ -f "$zfsdr_temp_dir"/"$current_archive" ]]; then
-      openssl enc -aes-256-ctr -in "$zfsdr_temp_dir"/"$current_archive" -out "$zfsdr_temp_dir"/"$current_archive".enc -pass file:"$openssl_enc_pw_file" -salt
-      if [[ "$delete_intermediate_steps_immediately" == "true" ]]; then
-        rm "$zfsdr_temp_dir"/"$current_archive"
+        rm "$zfsdr_temp_dir/$current_archive"
       fi
     else
       throw_error "Unable to determine what archive to encrypt!"
     fi
+
+    current_archive="$current_archive.enc"
+
   fi
 }
 
 move_archive_to_backup() {
-  if [[ -f "$zfsdr_temp_dir"/"$current_archive".7z.enc ]]; then
-    mv "$zfsdr_temp_dir"/"$current_archive".7z.enc "$main_backup_dir"/"$current_archive".7z.enc
-  elif [[ -f "$zfsdr_temp_dir"/"$current_archive".enc ]]; then
-    mv "$zfsdr_temp_dir"/"$current_archive".enc "$main_backup_dir"/"$current_archive".enc
-  elif [[ -f "$zfsdr_temp_dir"/"$current_archive".7z ]]; then
-    mv "$zfsdr_temp_dir"/"$current_archive".7z "$main_backup_dir"/"$current_archive".7z
-  elif [[ -f "$zfsdr_temp_dir"/"$current_archive" ]]; then
-    mv "$zfsdr_temp_dir"/"$current_archive" "$main_backup_dir"/"$current_archive"
+  if [[ -f "$zfsdr_temp_dir/$current_archive" ]]; then
+    mv "$zfsdr_temp_dir/$current_archive" "$main_backup_dir/$current_archive"
   else
     throw_error "Unable to locate archive to move to storage!"
   fi

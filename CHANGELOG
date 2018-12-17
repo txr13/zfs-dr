@@ -25,6 +25,8 @@
   predecessor snapshot. (Example, if weekly2 was missing, previous versions would
   export weekly3 based off the monthly, instead of exporting based off weekly1.)
 - Did not check whether snapshots had been exported to archival.
+- Archive filenames are updated as each step is performed (leaner condition
+  tests).
 
 
 ## [0.1.0] - 2017-11-17
