@@ -208,7 +208,7 @@ do_weekly_snap() {
     ret=$?
     if [[ $ret -eq 1 ]]; then
       throw_warning "Missing snapshot weekly$previous_week"
-      previous_week=$(( $previous_week-- ))
+      (( previous_week-- ))
     elif [[ $ret -eq 0 ]]; then
       break
     fi
@@ -278,8 +278,8 @@ do_daily_snap() {
     ret=$?
     if [[ $ret -eq 1 ]]; then
       throw_warning "Missing snapshot daily$previous_dow"
-      previous_dow=$(( $previous_dow-- ))
-      previous_day=$(( $previous_day-- ))
+      (( previous_dow-- ))
+      (( previous_day-- ))
     elif [[ $ret -eq 0 ]]; then
       break
     fi
