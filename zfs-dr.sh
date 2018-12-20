@@ -8,7 +8,7 @@
 ## compressed with 7-zip and encrypted with openssl.
 ##
 ## On the first day of every week (Sunday), takes a snapshot of all ZFS
-## filesystems. These are exported as incremental snopshots, based off the
+## filesystems. These are exported as incremental snapshots, based off the
 ## previous monthly or weekly snapshot (whichever was done last). Any
 ## existing daily snapshots are deleted.
 ##
@@ -58,6 +58,11 @@ throw_warning(){
 }
 
 prerequisite_check() {
+  /sbin/zfs -? > /dev/null 2>&1
+  if [[ $? -ne 0 ]]; then
+    throw_error "ZFS command not found, exiting..."
+  fi
+
   if [[ ! -d $main_backup_dir ]]; then
     throw_error "Backup storage directory $main_backup_dir not found, exiting..."
   fi
@@ -166,19 +171,19 @@ check_for_archive() {
 }
 
 export_zfs_incremental_snapshot() {
-  zfs send -R -i "$zfs_root_pool"@"$zfsdr_snap_prefix"_${1} "$zfs_root_pool"@"$zfsdr_snap_prefix"_${2} > "$zfsdr_temp_dir"/"$current_archive"
+  /sbin/zfs send -R -i "$zfs_root_pool"@"$zfsdr_snap_prefix"_${1} "$zfs_root_pool"@"$zfsdr_snap_prefix"_${2} > "$zfsdr_temp_dir"/"$current_archive"
 }
 
 do_monthly_snap() {
-  zfs snapshot -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_newmonthly
+  /sbin/zfs snapshot -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_newmonthly
   dump_monthly_snaps
-  zfs rename -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_newmonthly "$zfsdr_snap_prefix"_monthly
+  /sbin/zfs rename -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_newmonthly "$zfsdr_snap_prefix"_monthly
 
   create_temp_dir
 
   current_archive="$zfsdr_snap_prefix"_monthly_`date +%Y%m`
 
-  zfs send -R "$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly > "$zfsdr_temp_dir"/"$current_archive"
+  /sbin/zfs send -R "$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly > "$zfsdr_temp_dir"/"$current_archive"
 
   compress_archive
   encrypt_archive
@@ -189,7 +194,7 @@ do_monthly_snap() {
 }
 
 do_weekly_snap() {
-  zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly$
+  /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly$
   if [[ $? -eq 1 ]]; then
     throw_warning "Missing monthly snapshot detected; performing monthly snapshot instead."
     do_monthly_snap
@@ -197,14 +202,14 @@ do_weekly_snap() {
   fi
 
   get_current_week
-  zfs snapshot -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$current_week"
+  /sbin/zfs snapshot -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$current_week"
   dump_daily_snaps
 
   # If the previous week was zero or less, then we don't expect to find any previous weekly snapshots.
   # Check the previous weeks until we find one that exists, or we run out of weeks to check.
   local ret
   while [[ $previous_week -gt 0 ]]; do
-    zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$previous_week"$
+    /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$previous_week"$
     ret=$?
     if [[ $ret -eq 1 ]]; then
       throw_warning "Missing snapshot weekly$previous_week"
@@ -243,7 +248,7 @@ do_weekly_snap() {
 }
 
 do_daily_snap() {
-  zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly$
+  /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly$
   if [[ $? -eq 1 ]]; then
     throw_warning "Missing monthly snapshot detected; performing monthly snapshot instead."
     do_monthly_snap
@@ -254,7 +259,7 @@ do_daily_snap() {
 
   # If we haven't had a weekly snapshot yet, than don't look for one.
   if [[ $current_week -gt 0 ]]; then
-    zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$current_week"$
+    /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$current_week"$
     if [[ $? -eq 1 ]]; then
       throw_warning "Missing weekly snapshot detected; performing weekly snapshot instead."
       do_weekly_snap
@@ -274,7 +279,7 @@ do_daily_snap() {
   # should stop the check.
   local ret
   while [[ $previous_dow -gt 0 && $previous_day -gt 1 ]]; do
-    zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$previous_dow"$
+    /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$previous_dow"$
     ret=$?
     if [[ $ret -eq 1 ]]; then
       throw_warning "Missing snapshot daily$previous_dow"
@@ -286,7 +291,7 @@ do_daily_snap() {
   done
   unset ret
 
-  zfs snapshot -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$current_dow"
+  /sbin/zfs snapshot -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$current_dow"
 
   create_temp_dir
 
@@ -326,17 +331,17 @@ do_daily_snap() {
 }
 
 dump_daily_snaps() {
-  zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_daily[1-6]$ | xargs -n 1 zfs destroy -r
+  /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_daily[1-6]$ | xargs -n 1 zfs destroy -r
 }
 
 dump_weekly_snaps() {
   dump_daily_snaps
-  zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly[1-5]$ | xargs -n 1 zfs destroy -r
+  /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly[1-5]$ | xargs -n 1 zfs destroy -r
 }
 
 dump_monthly_snaps() {
   dump_weekly_snaps
-  zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly$ | xargs -n 1 zfs destroy -r
+  /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly$ | xargs -n 1 zfs destroy -r
 }
 
 dump_daily_archives() {

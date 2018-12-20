@@ -27,6 +27,7 @@
 - Did not check whether snapshots had been exported to archival.
 - Archive filenames are updated as each step is performed (leaner condition
   tests).
+- Added explicit path for zfs command (fixes command not found when run from cron).
 
 
 ## [0.1.0] - 2017-11-17
