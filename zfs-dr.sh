@@ -331,17 +331,17 @@ do_daily_snap() {
 }
 
 dump_daily_snaps() {
-  /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_daily[1-6]$ | xargs -n 1 zfs destroy -r
+  /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_daily[1-6]$ | xargs -n 1 /sbin/zfs destroy -r
 }
 
 dump_weekly_snaps() {
   dump_daily_snaps
-  /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly[1-5]$ | xargs -n 1 zfs destroy -r
+  /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly[1-5]$ | xargs -n 1 /sbin/zfs destroy -r
 }
 
 dump_monthly_snaps() {
   dump_weekly_snaps
-  /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly$ | xargs -n 1 zfs destroy -r
+  /sbin/zfs list -t snapshot -o name | grep ^"$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly$ | xargs -n 1 /sbin/zfs destroy -r
 }
 
 dump_daily_archives() {
