@@ -36,14 +36,45 @@
 
 
 ### USER-EDITABLE VARIABLES
+
+# The root ZFS pool to back up
 zfs_root_pool="data"
+
+# The prefix to use for ZFS snapshots created by this script
 zfsdr_snap_prefix="zfs-dr"
+
+# The directory where the completed archives should be stored
 main_backup_dir="/backup"
+
+# If false, the script will exit immediately if the main backup directory is
+# unavailable. If true, the script will take snapshots, export them, do any
+# configured compression / encryption, but will not move the finished archive
+# file to the main storage.
+continue_without_main_backup_dir="false"
+
+# The directory where temporary files should be stored
 main_temp_dir="/backup"
-openssl_enc_pw_file="/root/key/zfs-dr.key"
+
+# If false, the script will exit immediately if the main temp directory is
+# unavailable. If true, the script will take snapshots, but cannot export
+# them to an archive file or do any configured compression / encryption.
+continue_without_main_temp_dir="false"
+
+# Should exported archives be compressed?
 compress_backup="true"
+
+# Should exported archives be encrypted?
 encrypt_backup="true"
+
+# Set the password file which will be used for encryption
+openssl_enc_pw_file="/root/key/zfs-dr.key"
+
+# Should intermediate steps be deleted immediately after use (could be
+# useful if the main temp directory is on a space-constrained filesystem)
 delete_intermediate_steps_immediately="false"
+
+# Allow this script to automatically delete old archive files from
+# previous backup cycles?
 auto_delete_old_archives="true"
 
 
@@ -64,11 +95,19 @@ prerequisite_check() {
   fi
 
   if [[ ! -d $main_backup_dir ]]; then
-    throw_error "Backup storage directory $main_backup_dir not found, exiting..."
+    if [[ "$continue_without_main_backup_dir" == "true" ]]; then
+      throw_warning "Backup storage directory $main_backup_dir not found, continuing anyway..."
+    else
+      throw_error "Backup storage directory $main_backup_dir not found, exiting..."
+    fi
   fi
 
   if [[ ! -d $main_temp_dir ]]; then
-    throw_error "Scratch directory $main_temp_dir not found, exiting..."
+    if [[ "$continue_without_main_temp_dir" == "true" ]]; then
+      throw_warning "Scratch directory $main_temp_dir not found, continuing anyway..."
+    else
+      throw_error "Scratch directory $main_temp_dir not found, exiting..."
+    fi
   fi
 
   command -v date > /dev/null 2>&1
@@ -146,13 +185,17 @@ encrypt_archive() {
 }
 
 move_archive_to_backup() {
-  if [[ -f "$zfsdr_temp_dir/$current_archive" ]]; then
-    mv "$zfsdr_temp_dir/$current_archive" "$main_backup_dir/$current_archive"
-  else
-    throw_error "Unable to locate archive to move to storage!"
-  fi
+  if [[ -d $main_backup_dir ]]; then
+    if [[ -f "$zfsdr_temp_dir/$current_archive" ]]; then
+      mv "$zfsdr_temp_dir/$current_archive" "$main_backup_dir/$current_archive"
+    else
+      throw_error "Unable to locate archive to move to storage!"
+    fi
 
-  rm -r "$zfsdr_temp_dir"
+    rm -r "$zfsdr_temp_dir"
+  else
+    throw_warning "Backup storage directory $main_backup_dir not found! Admin must move completed archive $current_archive from temp dir $zfsdr_temp_dir to storage manually."
+  fi
 }
 
 check_for_archive() {
@@ -179,18 +222,22 @@ do_monthly_snap() {
   dump_monthly_snaps
   /sbin/zfs rename -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_newmonthly "$zfsdr_snap_prefix"_monthly
 
-  create_temp_dir
+  if [[ -d $main_temp_dir ]]; then
+    create_temp_dir
 
-  current_archive="$zfsdr_snap_prefix"_monthly_`date +%Y%m`
+    current_archive="$zfsdr_snap_prefix"_monthly_`date +%Y%m`
 
-  /sbin/zfs send -R "$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly > "$zfsdr_temp_dir"/"$current_archive"
+    /sbin/zfs send -R "$zfs_root_pool"@"$zfsdr_snap_prefix"_monthly > "$zfsdr_temp_dir"/"$current_archive"
 
-  compress_archive
-  encrypt_archive
-  if [[ "$auto_delete_old_archives" == "true" ]]; then
-    dump_monthly_archives
+    compress_archive
+    encrypt_archive
+    if [[ "$auto_delete_old_archives" == "true" ]]; then
+      dump_monthly_archives
+    fi
+    move_archive_to_backup
+  else
+    throw_warning "Scratch directory $main_temp_dir not found! Snapshot created, but unable to continue with archive export..."
   fi
-  move_archive_to_backup
 }
 
 do_weekly_snap() {
@@ -220,31 +267,35 @@ do_weekly_snap() {
   done
   unset ret
 
-  create_temp_dir
+  if [[ -d $main_temp_dir ]]; then
+    create_temp_dir
 
-  current_archive="$zfsdr_snap_prefix"_weekly_`date +%Y%m%d`
+    current_archive="$zfsdr_snap_prefix"_weekly_`date +%Y%m%d`
 
-  check_for_archive monthly `date +%Y%m`
+    check_for_archive monthly `date +%Y%m`
 
-  if [[ $previous_week -lt 1 ]];then
-    export_zfs_incremental_snapshot monthly weekly"$current_week"
-  else
-    local rewindweeks=$(( $current_week - $previous_week ))
-    local rewinddays=$(( $rewindweeks * 7 ))
-    local prevarchivedate=$(( $start_of_week - $rewinddays ))
-    if [[ $prevarchivedate -lt 10 ]]; then
-      prevarchivedate="0$prevarchivedate"
+    if [[ $previous_week -lt 1 ]];then
+      export_zfs_incremental_snapshot monthly weekly"$current_week"
+    else
+      local rewindweeks=$(( $current_week - $previous_week ))
+      local rewinddays=$(( $rewindweeks * 7 ))
+      local prevarchivedate=$(( $start_of_week - $rewinddays ))
+      if [[ $prevarchivedate -lt 10 ]]; then
+        prevarchivedate="0$prevarchivedate"
+      fi
+      check_for_archive weekly `date +%Y%m`$prevarchivedate
+      export_zfs_incremental_snapshot weekly"$previous_week" weekly"$current_week"
     fi
-    check_for_archive weekly `date +%Y%m`$prevarchivedate
-    export_zfs_incremental_snapshot weekly"$previous_week" weekly"$current_week"
-  fi
 
-  compress_archive
-  encrypt_archive
-  if [[ "$auto_delete_old_archives" == "true" ]]; then
-    dump_daily_archives
+    compress_archive
+    encrypt_archive
+    if [[ "$auto_delete_old_archives" == "true" ]]; then
+      dump_daily_archives
+    fi
+    move_archive_to_backup
+  else
+    throw_warning "Scratch directory $main_temp_dir not found! Snapshot created, but unable to continue with archive export..."
   fi
-  move_archive_to_backup
 }
 
 do_daily_snap() {
@@ -293,41 +344,45 @@ do_daily_snap() {
 
   /sbin/zfs snapshot -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$current_dow"
 
-  create_temp_dir
+  if [[ -d $main_temp_dir ]]; then
+    create_temp_dir
 
-  current_archive="$zfsdr_snap_prefix"_daily_`date +%Y%m%d`
+    current_archive="$zfsdr_snap_prefix"_daily_`date +%Y%m%d`
 
-  check_for_archive monthly `date +%Y%m`
-  if [[ $current_week -gt 0 ]]; then
-    if [[ $start_of_week -lt 10 ]]; then
-      start_of_week="0$start_of_week"
+    check_for_archive monthly `date +%Y%m`
+    if [[ $current_week -gt 0 ]]; then
+      if [[ $start_of_week -lt 10 ]]; then
+        start_of_week="0$start_of_week"
+      fi
+      check_for_archive weekly `date +%Y%m`$start_of_week
     fi
-    check_for_archive weekly `date +%Y%m`$start_of_week
-  fi
 
-  # If previous day of week is greater than zero (and we didn't reach the beginning of the month),
-  # export based on the previous daily.
-  # If previous day of week reached zero and current week is greater than zero, export based on the
-  # current weekly snapshot. (If we reached the beginning of the month before reaching the beginning
-  # of the week, we're automatically in week zero.)
-  # If we're in week zero, export based on the monthly snapshot.
-  if [[ $previous_dow -gt 0 && $previous_day -gt 1 ]]; then
-    local rewind=$(( $current_dow - $previous_dow ))
-    local prevarchivedate=$(( `date +%d` - $rewind ))
-    if [[ $prevarchivedate -lt 10 ]]; then
-      prevarchivedate="0$prevarchivedate"
+    # If previous day of week is greater than zero (and we didn't reach the beginning of the month),
+    # export based on the previous daily.
+    # If previous day of week reached zero and current week is greater than zero, export based on the
+    # current weekly snapshot. (If we reached the beginning of the month before reaching the beginning
+    # of the week, we're automatically in week zero.)
+    # If we're in week zero, export based on the monthly snapshot.
+    if [[ $previous_dow -gt 0 && $previous_day -gt 1 ]]; then
+      local rewind=$(( $current_dow - $previous_dow ))
+      local prevarchivedate=$(( `date +%d` - $rewind ))
+      if [[ $prevarchivedate -lt 10 ]]; then
+        prevarchivedate="0$prevarchivedate"
+      fi
+      check_for_archive daily `date +%Y%m`$prevarchivedate
+      export_zfs_incremental_snapshot daily"$previous_dow" daily"$current_dow"
+    elif [[ $current_week -gt 0 ]]; then
+      export_zfs_incremental_snapshot weekly"$current_week" daily"$current_dow"
+    else
+      export_zfs_incremental_snapshot monthly daily"$current_dow"
     fi
-    check_for_archive daily `date +%Y%m`$prevarchivedate
-    export_zfs_incremental_snapshot daily"$previous_dow" daily"$current_dow"
-  elif [[ $current_week -gt 0 ]]; then
-    export_zfs_incremental_snapshot weekly"$current_week" daily"$current_dow"
+
+    compress_archive
+    encrypt_archive
+    move_archive_to_backup
   else
-    export_zfs_incremental_snapshot monthly daily"$current_dow"
+    throw_warning "Scratch directory $main_temp_dir not found! Snapshot created, but unable to continue with archive export..."
   fi
-
-  compress_archive
-  encrypt_archive
-  move_archive_to_backup
 }
 
 dump_daily_snaps() {
@@ -345,17 +400,29 @@ dump_monthly_snaps() {
 }
 
 dump_daily_archives() {
-  rm "$main_backup_dir"/*_daily_*
+  if [[ -d $main_backup_dir ]]; then
+    rm "$main_backup_dir"/*_daily_*
+  else
+    throw_warning "Backup storage directory $main_backup_dir not found! Unable to remove archive files..."
+  fi
 }
 
 dump_weekly_archives() {
-  dump_daily_archives
-  rm "$main_backup_dir"/*_weekly_*
+  if [[ -d $main_backup_dir ]]; then
+    dump_daily_archives
+    rm "$main_backup_dir"/*_weekly_*
+  else
+    throw_warning "Backup storage directory $main_backup_dir not found! Unable to remove archive files..."
+  fi
 }
 
 dump_monthly_archives() {
-  dump_weekly_archives
-  rm "$main_backup_dir"/*_monthly_*
+  if [[ -d $main_backup_dir ]]; then
+    dump_weekly_archives
+    rm "$main_backup_dir"/*_monthly_*
+  else
+    throw_warning "Backup storage directory $main_backup_dir not found! Unable to remove archive files..."
+  fi
 }
 
 get_current_week() {

@@ -18,6 +18,8 @@
   indicate that the user should examine the situation and manually re-export the
   relevant snapshots as needed.
 - Added a prerequisite check to be sure dependencies are available
+- Added option to allow the script to continue making snapshots and exporting
+  archives if the main storage directory and/or scratch directory is unavailable
 
 ## Fixed
 - Script previously assumed that a missing immediate predecessor snapshot indicated
