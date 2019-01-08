@@ -320,7 +320,7 @@ do_daily_snap() {
 
   current_dow=`date +%w`
   previous_dow=$(( $current_dow - 1 ))
-  previous_day=$(( `date +%d` - 1 ))
+  previous_day=$(( `date +%e` - 1 ))
 
   # If the previous dow was zero or the previous day was one, then we don't expect to find any previous
   # daily snapshots.
@@ -365,7 +365,7 @@ do_daily_snap() {
     # If we're in week zero, export based on the monthly snapshot.
     if [[ $previous_dow -gt 0 && $previous_day -gt 1 ]]; then
       local rewind=$(( $current_dow - $previous_dow ))
-      local prevarchivedate=$(( `date +%d` - $rewind ))
+      local prevarchivedate=$(( `date +%e` - $rewind ))
       if [[ $prevarchivedate -lt 10 ]]; then
         prevarchivedate="0$prevarchivedate"
       fi
@@ -426,7 +426,7 @@ dump_monthly_archives() {
 }
 
 get_current_week() {
-  start_of_week=$(( `date +%d` - `date +%w` ))
+  start_of_week=$(( `date +%e` - `date +%w` ))
   if [[ $start_of_week -le 1 ]]; then
     current_week=0
   elif [[ $start_of_week -ge 2 && $start_of_week -le 8 ]]; then
@@ -450,7 +450,7 @@ get_current_week() {
 
 prerequisite_check
 
-if [[ `date +%d` -eq 1 ]]; then
+if [[ `date +%e` -eq 1 ]]; then
   do_monthly_snap
 elif [[ `date +%w` -eq 0 ]]; then
   do_weekly_snap
