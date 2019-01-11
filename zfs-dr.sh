@@ -426,7 +426,7 @@ dump_monthly_archives() {
 }
 
 get_current_week() {
-  start_of_week=$(( `date +%e` - `date +%w` ))
+  eval start_of_week=$(( `date +%e` - `date +%w` ))
   if [[ $start_of_week -le 1 ]]; then
     current_week=0
   elif [[ $start_of_week -ge 2 && $start_of_week -le 8 ]]; then
