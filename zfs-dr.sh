@@ -46,19 +46,14 @@ zfsdr_snap_prefix="zfs-dr"
 # The directory where the completed archives should be stored
 main_backup_dir="/backup"
 
-# If false, the script will exit immediately if the main backup directory is
-# unavailable. If true, the script will take snapshots, export them, do any
-# configured compression / encryption, but will not move the finished archive
-# file to the main storage.
+# If false, the script will exit immediately after taking snapshots if the
+# main backup directory is unavailable. If true, the script will export the
+# snapshots and do any configured compression / encryption, but will not move the
+# finished archive file to the main storage.
 continue_without_main_backup_dir="false"
 
 # The directory where temporary files should be stored
 main_temp_dir="/backup"
-
-# If false, the script will exit immediately if the main temp directory is
-# unavailable. If true, the script will take snapshots, but cannot export
-# them to an archive file or do any configured compression / encryption.
-continue_without_main_temp_dir="false"
 
 # Should exported archives be compressed?
 compress_backup="true"
@@ -98,16 +93,12 @@ prerequisite_check() {
     if [[ "$continue_without_main_backup_dir" == "true" ]]; then
       throw_warning "Backup storage directory $main_backup_dir not found, continuing anyway..."
     else
-      throw_error "Backup storage directory $main_backup_dir not found, exiting..."
+      throw_warning "Backup storage directory $main_backup_dir not found, will do snapshots and exit..."
     fi
   fi
 
   if [[ ! -d $main_temp_dir ]]; then
-    if [[ "$continue_without_main_temp_dir" == "true" ]]; then
-      throw_warning "Scratch directory $main_temp_dir not found, continuing anyway..."
-    else
-      throw_error "Scratch directory $main_temp_dir not found, exiting..."
-    fi
+    throw_warning "Scratch directory $main_temp_dir not found, will do snapshots and exit..."
   fi
 
   command -v date > /dev/null 2>&1
@@ -194,7 +185,7 @@ move_archive_to_backup() {
 
     rm -r "$zfsdr_temp_dir"
   else
-    throw_warning "Backup storage directory $main_backup_dir not found! Admin must move completed archive $current_archive from temp dir $zfsdr_temp_dir to storage manually."
+    throw_error "Backup storage directory $main_backup_dir not found! Admin must move completed archive $current_archive from temp dir $zfsdr_temp_dir to storage manually."
   fi
 }
 
@@ -222,6 +213,10 @@ do_monthly_snap() {
   dump_monthly_snaps
   /sbin/zfs rename -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_newmonthly "$zfsdr_snap_prefix"_monthly
 
+  if [[ ! -d $main_backup_dir && "$continue_without_main_backup_dir" != "true" ]]; then
+    throw_error "Snapshot created, exiting because $main_backup_dir is not available..."
+  fi
+
   if [[ -d $main_temp_dir ]]; then
     create_temp_dir
 
@@ -236,7 +231,7 @@ do_monthly_snap() {
     fi
     move_archive_to_backup
   else
-    throw_warning "Scratch directory $main_temp_dir not found! Snapshot created, but unable to continue with archive export..."
+    throw_error "Scratch directory $main_temp_dir not found! Snapshot created, but unable to continue with archive export..."
   fi
 }
 
@@ -251,6 +246,10 @@ do_weekly_snap() {
   get_current_week
   /sbin/zfs snapshot -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_weekly"$current_week"
   dump_daily_snaps
+
+  if [[ ! -d $main_backup_dir && "$continue_without_main_backup_dir" != "true" ]]; then
+    throw_error "Snapshot created, exiting because $main_backup_dir is not available..."
+  fi
 
   # If the previous week was zero or less, then we don't expect to find any previous weekly snapshots.
   # Check the previous weeks until we find one that exists, or we run out of weeks to check.
@@ -294,7 +293,7 @@ do_weekly_snap() {
     fi
     move_archive_to_backup
   else
-    throw_warning "Scratch directory $main_temp_dir not found! Snapshot created, but unable to continue with archive export..."
+    throw_error "Scratch directory $main_temp_dir not found! Snapshot created, but unable to continue with archive export..."
   fi
 }
 
@@ -319,6 +318,13 @@ do_daily_snap() {
   fi
 
   current_dow=`date +%w`
+
+  /sbin/zfs snapshot -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$current_dow"
+
+  if [[ ! -d $main_backup_dir && "$continue_without_main_backup_dir" != "true" ]]; then
+    throw_error "Snapshot created, exiting because $main_backup_dir is not available..."
+  fi
+
   previous_dow=$(( $current_dow - 1 ))
   previous_day=$(( `date +%e` - 1 ))
 
@@ -341,8 +347,6 @@ do_daily_snap() {
     fi
   done
   unset ret
-
-  /sbin/zfs snapshot -r "$zfs_root_pool"@"$zfsdr_snap_prefix"_daily"$current_dow"
 
   if [[ -d $main_temp_dir ]]; then
     create_temp_dir
@@ -381,7 +385,7 @@ do_daily_snap() {
     encrypt_archive
     move_archive_to_backup
   else
-    throw_warning "Scratch directory $main_temp_dir not found! Snapshot created, but unable to continue with archive export..."
+    throw_error "Scratch directory $main_temp_dir not found! Snapshot created, but unable to continue with archive export..."
   fi
 }
 

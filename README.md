@@ -2,7 +2,7 @@
 
 ZFS-DR is a script originally designed to facilitate the full backup of a ZFS pool in case of catastrophic server loss (a "disaster recovery" scenario). The backup cycle is a standard grandparent-parent-child setup, with the monthly backup running on the first of the month, weekly backups on every Sunday thereafter, and daily backups on every other day.
 
-An entire ZFS pool is targeted for backup, using a recursive snapshot to capture all datasets. The monthly snapshot is a full export, with weekly snapshots being exported as an incremental difference from monthly to weekly to weekly. Daily snapshots are exported as an incremental difference from the most recent monthly or weekly. Each new weekly snapshot automatically removes all current daily snapshots, and each monthly snapshot automatically removes all snapshots taken.
+An entire ZFS pool is targeted for backup, using a recursive snapshot to capture all datasets. The monthly snapshot is a full export, with weekly snapshots being exported as an incremental difference from monthly to weekly to weekly. Daily snapshots are exported as an incremental difference from the most recent snapshot (monthly, weekly, or daily). Each new weekly snapshot automatically removes all current daily snapshots, and each monthly snapshot automatically removes all snapshots taken.
 
 Exported snapshots can optionally be compressed (using 7-Zip) and/or encrypted (using an OpenSSL key file) before being moved to storage. The script will by default automatically delete the exported archives on the same schedule as the snapshots, but this can be disabled if you would prefer to keep several cycles of archives in storage (and manage them separately).
 
@@ -30,3 +30,6 @@ Future goals for development (in no particular order):
 - Put the configuration variables into a separate config file with better inline documentation.
 - Use `cp`/`rm` instead of `mv` to transfer the completed archive (avoid permissions errors when transferring across filesystem boundaries)
 - Add debug/verbose switch to enable xtrace and additional messages indicating program flow points
+- Use lzip for compression rather than 7-Zip.
+- Add the -pbkdf2 argument for openssl encryption.
+- When checking the archive files on disk, warn if they are zero-byte files (not properly exported).

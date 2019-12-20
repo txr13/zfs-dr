@@ -2,24 +2,39 @@
 
 ## [x.x.x] - xxxx-xx-xx
 ## Changed
+- Take ZFS snapshots even if the main or scratch directories are unavailable (and
+  even if we're not configured to continue anyway).
 
 ## Added
-- Licensed under the LGPL
-- Scratch / temporary directory can be set independantly of the storage directory
-- Compression and encryption can be toggled on and off independantly
+
+## Fixed
+
+## Removed
+- Since the script now takes snapshot regardless of whether the backup or temp
+  directories exist, the setting to continue with a snapshot without a temp
+  directory is meaningless.
+
+
+## [0.2.0] - 2019-01-11
+## Changed
+
+## Added
+- Licensed under the LGPL.
+- Scratch / temporary directory can be set independantly of the storage directory.
+- Compression and encryption can be toggled on and off independantly.
 - Intermediate steps in compression and encryption can be deleted after each step
   instead of waiting until the end of the process.
 - Added ability to disable automatic deletion of old archives (so the user can
-  manage multiple cycles of backup archives manually, if desired)
-- Script can now report errors and warnings through stderr
+  manage multiple cycles of backup archives manually, if desired).
+- Script can now report errors and warnings through stderr.
 - A missing predecessor archive will trigger a warning. If another zfs-dr scratch
   directory exists, the warning will indicate that a previous run may still be in
   progress. If there are no other scratch directories present, the warning will
   indicate that the user should examine the situation and manually re-export the
   relevant snapshots as needed.
-- Added a prerequisite check to be sure dependencies are available
+- Added a prerequisite check to be sure dependencies are available.
 - Added option to allow the script to continue making snapshots and exporting
-  archives if the main storage directory and/or scratch directory is unavailable
+  archives if the main storage directory and/or scratch directory is unavailable.
 
 ## Fixed
 - Script previously assumed that a missing immediate predecessor snapshot indicated
