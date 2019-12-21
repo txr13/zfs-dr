@@ -4,13 +4,17 @@
 ## Changed
 - Take ZFS snapshots even if the main or scratch directories are unavailable (and
   even if we're not configured to continue anyway).
+- Transfer of archive to storage is done with cp and will not preserve ownership
+  (prevents errors from moving across filesystem boundaries).
 
 ## Added
 
 ## Fixed
+- Do not remove the temp directory if we throw an error on an inaccessible
+  archive.
 
 ## Removed
-- Since the script now takes snapshot regardless of whether the backup or temp
+- Since the script now takes snapshots regardless of whether the backup or temp
   directories exist, the setting to continue with a snapshot without a temp
   directory is meaningless.
 

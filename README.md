@@ -28,7 +28,6 @@ Set the configuration variables in the top of the script according to your requi
 
 Future goals for development (in no particular order):
 - Put the configuration variables into a separate config file with better inline documentation.
-- Use `cp`/`rm` instead of `mv` to transfer the completed archive (avoid permissions errors when transferring across filesystem boundaries)
 - Add debug/verbose switch to enable xtrace and additional messages indicating program flow points
 - Use lzip for compression rather than 7-Zip.
 - Add the -pbkdf2 argument for openssl encryption.

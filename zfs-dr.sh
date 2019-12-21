@@ -178,12 +178,12 @@ encrypt_archive() {
 move_archive_to_backup() {
   if [[ -d $main_backup_dir ]]; then
     if [[ -f "$zfsdr_temp_dir/$current_archive" ]]; then
-      mv "$zfsdr_temp_dir/$current_archive" "$main_backup_dir/$current_archive"
+      cp --no-preserve=ownership "$zfsdr_temp_dir/$current_archive" "$main_backup_dir/$current_archive"
+      rm -r "$zfsdr_temp_dir"
     else
       throw_error "Unable to locate archive to move to storage!"
     fi
 
-    rm -r "$zfsdr_temp_dir"
   else
     throw_error "Backup storage directory $main_backup_dir not found! Admin must move completed archive $current_archive from temp dir $zfsdr_temp_dir to storage manually."
   fi
