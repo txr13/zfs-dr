@@ -182,7 +182,8 @@ move_archive_to_backup() {
       if [[ `stat -c %s "$main_backup_dir/$current_archive"` -eq `stat -c %s "$zfsdr_temp_dir/$current_archive"`]]; then
         rm -r "$zfsdr_temp_dir"
       else
-	throw_error "Archive exported to $main_backup_dir does not match size of archive in $zfsdr_temp_dir! Admin attention required."
+        throw_error "Archive exported to $main_backup_dir does not match size of archive in $zfsdr_temp_dir! Admin attention required."
+      fi
     else
       throw_error "Unable to locate archive to move to storage!"
     fi
