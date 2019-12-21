@@ -179,7 +179,10 @@ move_archive_to_backup() {
   if [[ -d $main_backup_dir ]]; then
     if [[ -f "$zfsdr_temp_dir/$current_archive" ]]; then
       cp --no-preserve=ownership "$zfsdr_temp_dir/$current_archive" "$main_backup_dir/$current_archive"
-      rm -r "$zfsdr_temp_dir"
+      if [[ `stat -c %s "$main_backup_dir/$current_archive"` -eq `stat -c %s "$zfsdr_temp_dir/$current_archive"`]]; then
+        rm -r "$zfsdr_temp_dir"
+      else
+	throw_error "Archive exported to $main_backup_dir does not match size of archive in $zfsdr_temp_dir! Admin attention required."
     else
       throw_error "Unable to locate archive to move to storage!"
     fi
@@ -199,6 +202,9 @@ check_for_archive() {
         fi
       done
       throw_warning "Missing ${1} archive detected, and NO other scratch directories exist--admin attention required! Continuing..."
+      break
+    elif [[ `stat -c %s "$f"` -eq 0 ]]; then
+      throw_warning "Archive ${1} exists, but has no content--admin attention required! Continuing..."
       break
     fi
   done

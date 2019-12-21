@@ -9,10 +9,15 @@
 - Adds the -pbkdf2 argument for openssl encryption.
 
 ## Added
+- When checking the archive files on disk, warn if they are zero-byte files (not
+  properly exported).
+- When exporting the completed archive to the main backup directory, verify the size
+  of the exported archive matches the size of the source archive before deleting the
+  temporary directory.
 
 ## Fixed
 - Do not remove the temp directory if we throw an error on an inaccessible
-  archive.
+  source archive.
 
 ## Removed
 - Since the script now takes snapshots regardless of whether the backup or temp
