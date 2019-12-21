@@ -162,7 +162,7 @@ compress_archive() {
 encrypt_archive() {
   if [[ "$encrypt_backup" == "true" ]]; then
     if [[ -f "$zfsdr_temp_dir/$current_archive" ]]; then
-      openssl enc -aes-256-ctr -in "$zfsdr_temp_dir/$current_archive" -out "$zfsdr_temp_dir/$current_archive.enc" -pass file:"$openssl_enc_pw_file" -salt
+      openssl enc -aes-256-ctr -pbkdf2 -in "$zfsdr_temp_dir/$current_archive" -out "$zfsdr_temp_dir/$current_archive.enc" -pass file:"$openssl_enc_pw_file" -salt
       if [[ "$delete_intermediate_steps_immediately" == "true" ]]; then
         rm "$zfsdr_temp_dir/$current_archive"
       fi

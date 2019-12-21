@@ -30,5 +30,4 @@ Future goals for development (in no particular order):
 - Put the configuration variables into a separate config file with better inline documentation.
 - Add debug/verbose switch to enable xtrace and additional messages indicating program flow points
 - Use lzip for compression rather than 7-Zip.
-- Add the -pbkdf2 argument for openssl encryption.
 - When checking the archive files on disk, warn if they are zero-byte files (not properly exported).

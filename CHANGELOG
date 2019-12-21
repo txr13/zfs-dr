@@ -6,6 +6,7 @@
   even if we're not configured to continue anyway).
 - Transfer of archive to storage is done with cp and will not preserve ownership
   (prevents errors from moving across filesystem boundaries).
+- Adds the -pbkdf2 argument for openssl encryption.
 
 ## Added
 
