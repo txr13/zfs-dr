@@ -1,12 +1,19 @@
 # Changelog
 
 ## [x.x.x] - xxxx-xx-xx
+
+
+## [0.3.0] - 2022-03-31
 ## Changed
 - Take ZFS snapshots even if the main or scratch directories are unavailable (and
   even if we're not configured to continue anyway).
 - Transfer of archive to storage is done with cp and will not preserve ownership
   (prevents errors from moving across filesystem boundaries).
 - Adds the -pbkdf2 argument for openssl encryption.
+- Adds the -iter argument to specify the number of PBKDF2 iterations to perform, set
+  to 150,000.
+- Adds the -md argument for openssl hashing, using sha512 (because that seems to be
+  faster than sha256 on 64-bit systems without SHA extensions).
 
 ## Added
 - When checking the archive files on disk, warn if they are zero-byte files (not
