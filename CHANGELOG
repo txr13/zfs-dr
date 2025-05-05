@@ -1,6 +1,16 @@
 # Changelog
 
 ## [x.x.x] - xxxx-xx-xx
+## Changed
+- Removed dump_weekly_archives method; it's only ever called from dump_monthly_archives
+  anyway.
+- Monthly backups can take a very long time to complete, and daily / weekly archives may
+  be created while the monthly run is still in progress. Once the monthly run completed,
+  all previous weekly and daily archives were removed, without regard to month. Now only
+  the previous month's archives will be removed, and any daily / weekly archives for the
+  current month will be left alone. To facilitate this, dump_monthly_archives now has
+  custom logic and does not chain the regular dump_daily_archives method.
+
 ## Fixed
 - Checking the exported backup archives for truncation was broken. Yes, it took me
   this long to figure it out.

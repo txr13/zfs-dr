@@ -418,18 +418,18 @@ dump_daily_archives() {
   fi
 }
 
-dump_weekly_archives() {
-  if [[ -d $main_backup_dir ]]; then
-    dump_daily_archives
-    rm "$main_backup_dir"/*_weekly_*
-  else
-    throw_warning "Backup storage directory $main_backup_dir not found! Unable to remove archive files..."
-  fi
-}
-
 dump_monthly_archives() {
   if [[ -d $main_backup_dir ]]; then
-    dump_weekly_archives
+    eval current_month=$(( `date +%m` ))
+
+    if [[ $current_month -gt 1 ]]; then
+      eval previous_month=$(( `date +%Y%m` - 1 ))
+    else
+      eval previous_month=$(( `date +%Y%m` - 89 ))
+    fi
+
+    rm "$main_backup_dir"/*_daily_"$previous_month"*
+    rm "$main_backup_dir"/*_weekly_"$previous_month"*
     rm "$main_backup_dir"/*_monthly_*
   else
     throw_warning "Backup storage directory $main_backup_dir not found! Unable to remove archive files..."
