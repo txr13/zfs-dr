@@ -19,7 +19,7 @@
 ##
 ##
 ##
-##     Copyright (C) 2018 Lance Hathaway
+##     Copyright (C) 2018-2025 Lance Hathaway
 ##
 ##    This program is free software: you can redistribute it and/or modify
 ##    it under the terms of the GNU Lesser General Public License as published by
@@ -179,7 +179,7 @@ move_archive_to_backup() {
   if [[ -d $main_backup_dir ]]; then
     if [[ -f "$zfsdr_temp_dir/$current_archive" ]]; then
       cp --no-preserve=ownership "$zfsdr_temp_dir/$current_archive" "$main_backup_dir/$current_archive"
-      if [[ `stat -c %s "$main_backup_dir/$current_archive"` -eq `stat -c %s "$zfsdr_temp_dir/$current_archive"`]]; then
+      if [[ `stat -c %s "$main_backup_dir/$current_archive"` -eq `stat -c %s "$zfsdr_temp_dir/$current_archive"` ]]; then
         rm -r "$zfsdr_temp_dir"
       else
         throw_error "Archive exported to $main_backup_dir does not match size of archive in $zfsdr_temp_dir! Admin attention required."
